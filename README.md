@@ -2,12 +2,12 @@
 
 # 🧠 Cognitally (formerly TokDash)
 
-**Sovereign AI Coding Agent Observability, Token Ledger & MCP Budget Guard for Linux / Ubuntu**
+**Sovereign AI Coding Agent Observability, Token Ledger & MCP Budget Guard for Linux, macOS & Windows**
 
 *Zero-latency passive stream accounting across 14 mainstream AI coding agents + Read-only Autonomous MCP Budget Defense.*
 
 [![Version](https://img.shields.io/badge/Release-v0.1.0-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
-[![Platform](https://img.shields.io/badge/Platform-Ubuntu%20%2F%20Linux-orange.svg)](https://ubuntu.com/)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](#)
 [![MCP 2024-11-05](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg)](https://modelcontextprotocol.io/)
 [![Zero Proxy](https://img.shields.io/badge/Proxy-Zero%20Overhead-success.svg)](#)
 [![License: Free for Personal Use](https://img.shields.io/badge/License-Free%20for%20Personal%20Use-blue.svg)](#)
@@ -34,10 +34,18 @@
 
 ## ⚡ 快速安装（一行流）
 
-在 Linux / Ubuntu 终端中直接运行官方独立二进制一键安装脚本：
+### 🐧 Linux / macOS
+在终端中直接运行官方独立二进制一键安装脚本：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.sh | bash
+```
+
+### 🪟 Windows (PowerShell)
+在 PowerShell (管理员或普通用户均可) 中运行一键安装脚本：
+
+```powershell
+irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.ps1 | iex
 ```
 
 安装完成后，全局自动获得 `cognitally` 及兼容别名 `tokdash` 命令：
