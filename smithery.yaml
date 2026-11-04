@@ -1,0 +1,11 @@
+# Smithery.ai MCP Registry Configuration
+# startCommand: cognitally --mcp
+name: cognitally
+version: "0.1.0"
+description: "Local-first AI coding token and cost observatory MCP server"
+startCommand:
+  type: stdio
+  config:
+    command: cognitally
+    args:
+      - "--mcp"
