@@ -153,5 +153,15 @@ cognitally --install-statusline
 
 ## 📦 发布说明与技术支持
 
-- **最新版本**：`v0.1.0` (Linux x86_64 Standalone Executable)
+- **最新版本**：`v0.1.0` (Linux x86_64 Standalone Executable & Windows Native PYZ)
 - **问题反馈与建议**：欢迎在 [GitHub Issues](https://github.com/kamanager2012/tokdash-releases/issues) 提交反馈与功能提案。
+
+---
+
+## 📜 许可协议 (License)
+
+本项目分发的二进制制品、可执行文件与配套脚本遵循 **[Cognitally / TokDash 专有最终用户许可协议 (EULA)](LICENSE)**：
+- **个人免费使用**：允许个人开发者出于本地监控、评估与研发观测目的免费下载与运行；
+- **专有权利保留**：保留全部专有知识产权与商标权；
+- **禁止商业转售与逆向**：严格禁止未经授权的商业转售、重新打包分发、反编译/逆向工程，或作为云端商业托管服务提供。
+
