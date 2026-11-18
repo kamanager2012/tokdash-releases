@@ -176,7 +176,12 @@ if (-not $ExpectedSha -and $UsedLocal -and $LocalBaseDir) {
 }
 
 if ($ExpectedSha) {
-    $ActualSha = (Get-FileHash -Path $PyzTemp -Algorithm SHA256).Hash.ToLowerInvariant()
+    $ActualSha = (& $PyExe @PyPrefix -c "import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$PyzTemp").Trim().ToLowerInvariant()
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item -Path $PyzTemp -Force -ErrorAction SilentlyContinue
+        Write-Error "Error: Failed to compute SHA-256 checksum for cognitally.pyz."
+        exit 1
+    }
     if ($ActualSha -ne $ExpectedSha.ToLowerInvariant()) {
         Remove-Item -Path $PyzTemp -Force -ErrorAction SilentlyContinue
         Write-Error "Error: SHA-256 mismatch for cognitally.pyz. Expected $ExpectedSha, got $ActualSha"

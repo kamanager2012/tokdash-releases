@@ -1,3 +1,5 @@
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PyzPath = Join-Path $ScriptDir "cognitally.pyz"
 

@@ -42,6 +42,20 @@ def _cli_cmd(use_pyz: bool = False) -> list:
     return [str(COGNITALLY_BIN)]
 
 
+def _run(cmd, env=None, input_text=None, timeout=20):
+    """Run a subprocess with deterministic UTF-8 stdout/stderr decoding."""
+    return subprocess.run(
+        cmd,
+        input=input_text,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=timeout,
+    )
+
+
 class TestReleaseBundle(unittest.TestCase):
     def test_zipapp_structure_and_cross_version_sources(self):
         required_entries = {
@@ -111,19 +125,13 @@ class TestReleaseBundle(unittest.TestCase):
             ]
             for cmd, expected_substr in cases:
                 t0 = time.monotonic()
-                proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=10)
+                proc = _run(cmd, env=env, timeout=10)
                 elapsed = time.monotonic() - t0
                 self.assertEqual(proc.returncode, 0, f"{cmd} failed: {proc.stderr}")
                 self.assertLess(elapsed, 2.0, f"{cmd} took {elapsed:.2f}s (expected < 2.0s)")
                 self.assertIn(expected_substr, proc.stdout)
 
-            ver_json = subprocess.run(
-                _cli_cmd(True) + ["--version", "--json"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=10,
-            )
+            ver_json = _run(_cli_cmd(True) + ["--version", "--json"], env=env, timeout=10)
             payload = json.loads(ver_json.stdout)
             self.assertEqual(payload, {"name": "cognitally", "version": "0.1.0"})
 
@@ -131,47 +139,23 @@ class TestReleaseBundle(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             env = _isolated_env(Path(tmp))
 
-            doc_proc = subprocess.run(
-                _cli_cmd(False) + ["--doctor", "--json"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            doc_proc = _run(_cli_cmd(False) + ["--doctor", "--json"], env=env, timeout=20)
             self.assertEqual(doc_proc.returncode, 0, doc_proc.stderr)
             doc_data = json.loads(doc_proc.stdout)
             self.assertIn("system", doc_data)
             self.assertIn("agents", doc_data)
             self.assertEqual(len(doc_data["agents"]), 14)
 
-            doc_ascii = subprocess.run(
-                _cli_cmd(False) + ["--doctor"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            doc_ascii = _run(_cli_cmd(False) + ["--doctor"], env=env, timeout=20)
             self.assertEqual(doc_ascii.returncode, 0, doc_ascii.stderr)
             self.assertNotIn("./start.sh", doc_ascii.stdout)
             self.assertIn("--help", doc_ascii.stdout)
 
-            sl_proc = subprocess.run(
-                _cli_cmd(False) + ["--install-statusline"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=15,
-            )
+            sl_proc = _run(_cli_cmd(False) + ["--install-statusline"], env=env, timeout=15)
             self.assertEqual(sl_proc.returncode, 0, sl_proc.stderr)
             self.assertIn("Cognitally Statusline Terminal Integration Guide", sl_proc.stdout)
 
-            budget_proc = subprocess.run(
-                _cli_cmd(False) + ["--budget-check", "--budget-limit", "50", "--json"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            budget_proc = _run(_cli_cmd(False) + ["--budget-check", "--budget-limit", "50", "--json"], env=env, timeout=20)
             self.assertEqual(budget_proc.returncode, 0, budget_proc.stderr)
             budget_data = json.loads(budget_proc.stdout)
             self.assertEqual(budget_data["threshold_usd"], 50.0)
@@ -188,14 +172,7 @@ class TestReleaseBundle(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             env = _isolated_env(Path(tmp))
-            proc = subprocess.run(
-                _cli_cmd(False) + ["--mcp"],
-                input=stdin_payload,
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            proc = _run(_cli_cmd(False) + ["--mcp"], env=env, input_text=stdin_payload, timeout=20)
             self.assertEqual(proc.returncode, 0, proc.stderr)
             lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
             self.assertEqual(len(lines), 3, f"Expected 3 JSON-RPC responses, got: {lines}")
@@ -227,7 +204,7 @@ class TestReleaseBundle(unittest.TestCase):
                 env = _isolated_env(tmp_path)
                 env["COGNITALLY_PYTHON"] = sys.executable
 
-                inst = subprocess.run(
+                inst = _run(
                     [
                         "powershell",
                         "-NoProfile",
@@ -241,8 +218,6 @@ class TestReleaseBundle(unittest.TestCase):
                         "-SkipDoctor",
                         "-Local",
                     ],
-                    capture_output=True,
-                    text=True,
                     env=env,
                     timeout=30,
                 )
@@ -252,17 +227,11 @@ class TestReleaseBundle(unittest.TestCase):
                 self.assertTrue((install_dir / "tokdash.cmd").is_file())
                 self.assertTrue((install_dir / "tokdash.ps1").is_file())
 
-                ver = subprocess.run(
-                    [str(install_dir / "cognitally.cmd"), "--version"],
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                    timeout=15,
-                )
+                ver = _run([str(install_dir / "cognitally.cmd"), "--version"], env=env, timeout=15)
                 self.assertEqual(ver.returncode, 0, ver.stderr)
                 self.assertIn("Cognitally (TokDash) v0.1.0", ver.stdout)
 
-                uninst = subprocess.run(
+                uninst = _run(
                     [
                         "powershell",
                         "-NoProfile",
@@ -274,8 +243,6 @@ class TestReleaseBundle(unittest.TestCase):
                         str(install_dir),
                         "-Uninstall",
                     ],
-                    capture_output=True,
-                    text=True,
                     env=env,
                     timeout=30,
                 )
@@ -286,12 +253,7 @@ class TestReleaseBundle(unittest.TestCase):
 
         bash_bin = shutil.which("bash")
         self.assertIsNotNone(bash_bin, "bash is required on POSIX systems")
-        syntax_chk = subprocess.run(
-            [bash_bin, "-n", str(REPO_ROOT / "install.sh")],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
+        syntax_chk = _run([bash_bin, "-n", str(REPO_ROOT / "install.sh")], timeout=10)
         self.assertEqual(syntax_chk.returncode, 0, syntax_chk.stderr)
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -301,36 +263,18 @@ class TestReleaseBundle(unittest.TestCase):
             env["COGNITALLY_INSTALL_DIR"] = str(install_dir)
             env["COGNITALLY_LOCAL_BINARY"] = str(COGNITALLY_BIN)
 
-            inst = subprocess.run(
-                [bash_bin, str(REPO_ROOT / "install.sh"), "--no-doctor"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            inst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--no-doctor"], env=env, timeout=20)
             self.assertEqual(inst.returncode, 0, inst.stdout + inst.stderr)
             installed_bin = install_dir / "cognitally"
             installed_alias = install_dir / "tokdash"
             self.assertTrue(installed_bin.is_file())
             self.assertTrue(installed_alias.is_symlink())
 
-            ver = subprocess.run(
-                [str(installed_alias), "--version"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=10,
-            )
+            ver = _run([str(installed_alias), "--version"], env=env, timeout=10)
             self.assertEqual(ver.returncode, 0, ver.stderr)
             self.assertIn("Cognitally (TokDash) v0.1.0", ver.stdout)
 
-            uninst = subprocess.run(
-                [bash_bin, str(REPO_ROOT / "install.sh"), "--uninstall"],
-                capture_output=True,
-                text=True,
-                env=env,
-                timeout=20,
-            )
+            uninst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--uninstall"], env=env, timeout=20)
             self.assertEqual(uninst.returncode, 0, uninst.stdout + uninst.stderr)
             self.assertFalse(installed_bin.exists())
             self.assertFalse(installed_alias.exists() or installed_alias.is_symlink())

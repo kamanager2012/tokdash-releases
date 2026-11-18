@@ -1,5 +1,7 @@
 @echo off
 setlocal
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=utf-8"
 set "SCRIPT_DIR=%~dp0"
 set "PYZ_PATH=%SCRIPT_DIR%cognitally.pyz"
 
