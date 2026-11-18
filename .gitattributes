@@ -1,0 +1,18 @@
+* text=auto
+
+# POSIX scripts & Unix standalone executable
+*.sh text eol=lf
+cognitally binary
+
+# Python sources, configs & docs
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+LICENSE text eol=lf
+SHA256SUMS text eol=lf
+
+# Windows batch, PowerShell scripts & zipapp binary
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.pyz binary

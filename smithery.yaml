@@ -3,6 +3,8 @@
 name: cognitally
 version: "0.1.0"
 description: "Local-first AI coding token and cost observatory MCP server"
+homepage: "https://github.com/kamanager2012/tokdash-releases"
+license: "Proprietary (Free for Personal Use)"
 startCommand:
   type: stdio
   config:
