@@ -161,6 +161,13 @@ class TestReleaseBundle(unittest.TestCase):
             self.assertEqual(budget_data["threshold_usd"], 50.0)
             self.assertFalse(budget_data["exceeded"])
 
+            sum_proc = _run(_cli_cmd(False) + ["--summary", "--no-color"], env=env, timeout=20)
+            self.assertEqual(sum_proc.returncode, 0, sum_proc.stderr)
+            self.assertIn("Agent", sum_proc.stdout)
+            self.assertIn("Cache Read", sum_proc.stdout)
+            self.assertIn("TOTAL", sum_proc.stdout)
+            self.assertNotIn("\033[", sum_proc.stdout)
+
     def test_mcp_stdio_protocol_handshake(self):
         requests = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},

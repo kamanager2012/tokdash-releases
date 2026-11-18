@@ -14,9 +14,34 @@
 
 **简体中文** | [English](README.en.md)
 
-[快速开始](#-快速安装一行流) • [CLI 命令参考](#-cli-命令全量参考) • [MCP 智能体配置](#-mcp-智能体即插即用) • [终端状态栏](#-毫秒级终端状态栏-statusline) • [支持的 14 款 Agent](#-支持的-14-款-ai-coding-agent) • [校验与卸载](#-完整性校验升级与卸载)
+[快速开始](#-快速安装一行流) • [界面预览](#-桌面端与终端预览) • [CLI 命令参考](#-cli-命令全量参考) • [MCP 智能体配置](#-mcp-智能体即插即用) • [终端状态栏](#-毫秒级终端状态栏-statusline) • [支持的 14 款 Agent](#-支持的-14-款-ai-coding-agent) • [校验与卸载](#-完整性校验升级与卸载)
 
 </div>
+
+---
+
+## 🖼️ 桌面端与终端预览
+
+![Cognitally Desktop Observatory Overview (mock snapshot preview)](docs/screenshots/overview.png)
+
+> 上图为 Electron 桌面端总览（演示用合成快照预览）；命令行直接输入 `cognitally`（或在脚本中调用 `cognitally --summary`）即可秒出多周期、多 Agent 对齐账单与配额进度条：
+
+```text
+Cognitally (TokDash) — Local AI Coding Agent Observatory  [snap:b0465d55 | view:today]
+======================================================================================
+  Today: $12.40 (3.20M)  |  Yesterday: $18.10 (4.85M)  |  7d: $94.20 (24.1M)  |  All-Time: $420.50 (110.4M)
+======================================================================================
+Agent                         In       Out  Cache Read   Hit %    Reason   Cost (USD)
+--------------------------------------------------------------------------------------
+Claude Code                45.2k    118.4k      2.10M   97.9%         0 $      6.42
+Codex CLI                 120.0k     92.1k    610.5k   83.6%     41.2k $      4.18
+Antigravity / Gemini       84.0k     38.5k    180.0k   68.2%     12.0k $      1.80
+--------------------------------------------------------------------------------------
+TOTAL                     249.2k    249.0k      2.89M   92.1%     53.2k $     12.40
+
+Live Subscription Quotas
+  Codex 5h     [█████░░░░░░░░░░░]  34.0%  (reset 11-18 20:00)
+```
 
 ---
 
@@ -69,6 +94,12 @@ irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/instal
 安装完成后，全局自动获得 `cognitally` 及兼容别名 `tokdash` 命令：
 
 ```bash
+# 直接在交互式终端运行：自动输出多 Agent 彩色汇总表格与配额进度条
+cognitally
+
+# 查看特定时间周期汇总（today / yesterday / week / month / all）
+cognitally --summary --period all
+
 # 查看命令行使用说明与全量参数
 cognitally --help
 
@@ -85,6 +116,7 @@ cognitally --statusline
 
 | 命令 | 说明 | 常用选项 |
 | :--- | :--- | :--- |
+| `cognitally` / `--summary` | 在终端输出多周期成本条、Agent 对齐表、配额进度条与 Top 模型/项目 | `--period today\|yesterday\|week\|month\|all`、`--no-color`、`--bitbar` |
 | `cognitally --doctor` | 探测 14 款 Agent 日志健康度、文件数与 400+ 模型定价库 | `--json` |
 | `cognitally --statusline` | 输出毫秒级单行终端状态徽标（复用原子快照缓存） | `--period today\|yesterday\|week\|month\|all`、`--format default\|compact\|cost\|tokens\|json`、`--no-icons`、`--force` |
 | `cognitally --install-statusline` | 打印适用于 Bash、Zsh、Tmux、Starship 的终端配置片段 | — |

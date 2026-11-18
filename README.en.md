@@ -14,9 +14,34 @@
 
 [简体中文](README.md) | **English**
 
-[Quick Install](#-quick-install-one-liner) • [CLI Reference](#-cli-command-reference) • [MCP Setup](#-mcp-plug-and-play) • [Statusline](#-millisecond-terminal-statusline) • [14 Supported Agents](#-14-supported-ai-coding-agents) • [Verify & Uninstall](#-verification-upgrade--uninstall)
+[Quick Install](#-quick-install-one-liner) • [Preview](#-desktop--terminal-preview) • [CLI Reference](#-cli-command-reference) • [MCP Setup](#-mcp-plug-and-play) • [Statusline](#-millisecond-terminal-statusline) • [14 Supported Agents](#-14-supported-ai-coding-agents) • [Verify & Uninstall](#-verification-upgrade--uninstall)
 
 </div>
+
+---
+
+## 🖼️ Desktop & Terminal Preview
+
+![Cognitally Desktop Observatory Overview (mock snapshot preview)](docs/screenshots/overview.png)
+
+> Above: Electron desktop overview (synthetic demo snapshot). In any interactive terminal, running `cognitally` (or `cognitally --summary` in scripts) renders an aligned multi-period ledger table with cache hit rates and live quota bars:
+
+```text
+Cognitally (TokDash) — Local AI Coding Agent Observatory  [snap:b0465d55 | view:today]
+======================================================================================
+  Today: $12.40 (3.20M)  |  Yesterday: $18.10 (4.85M)  |  7d: $94.20 (24.1M)  |  All-Time: $420.50 (110.4M)
+======================================================================================
+Agent                         In       Out  Cache Read   Hit %    Reason   Cost (USD)
+--------------------------------------------------------------------------------------
+Claude Code                45.2k    118.4k      2.10M   97.9%         0 $      6.42
+Codex CLI                 120.0k     92.1k    610.5k   83.6%     41.2k $      4.18
+Antigravity / Gemini       84.0k     38.5k    180.0k   68.2%     12.0k $      1.80
+--------------------------------------------------------------------------------------
+TOTAL                     249.2k    249.0k      2.89M   92.1%     53.2k $     12.40
+
+Live Subscription Quotas
+  Codex 5h     [█████░░░░░░░░░░░]  34.0%  (reset 11-18 20:00)
+```
 
 ---
 
@@ -69,6 +94,8 @@ irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/instal
 Verify your setup immediately:
 
 ```bash
+cognitally                      # Interactive terminal summary table + quota bars
+cognitally --summary --period all
 cognitally --help
 cognitally --doctor
 cognitally --statusline
@@ -80,6 +107,7 @@ cognitally --statusline
 
 | Command | Description | Key Options |
 | :--- | :--- | :--- |
+| `cognitally` / `--summary` | Render aligned multi-period cost strip, agent table, quota bars & top workspaces | `--period today\|yesterday\|week\|month\|all`, `--no-color`, `--bitbar` |
 | `cognitally --doctor` | Probe 14 AI coding agents, log health, and 400+ model prices | `--json` |
 | `cognitally --statusline` | Emit a fast single-line status badge from snapshot cache | `--period today\|yesterday\|week\|month\|all`, `--format default\|compact\|cost\|tokens\|json`, `--no-icons`, `--force` |
 | `cognitally --install-statusline` | Print shell snippets for Bash, Zsh, Tmux, and Starship | — |
