@@ -2,11 +2,11 @@
 # ==============================================================================
 # Cognitally (formerly TokDash) One-Line Standalone Binary Installer
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash
 # Options:
 #   --no-doctor        Skip post-install agent probe check
 #   --local            Prefer local repository binary if available
-#   --version <tag>    Pin release tag (default: v0.1.1)
+#   --version <tag>    Pin release tag or 'latest' (default: v0.1.2)
 #   --uninstall        Remove installed cognitally / tokdash binaries
 #   -h, --help         Show installer help
 # ==============================================================================
@@ -14,7 +14,7 @@ set -euo pipefail
 
 REPO="kamanager2012/tokdash-releases"
 BINARY_NAME="cognitally"
-RELEASE_TAG="${COGNITALLY_VERSION:-v0.1.1}"
+RELEASE_TAG="${COGNITALLY_VERSION:-v0.1.2}"
 INSTALL_DIR="${COGNITALLY_INSTALL_DIR:-${HOME}/.local/bin}"
 
 BOLD='\033[1m'
@@ -61,13 +61,13 @@ Usage:
 Options:
   --no-doctor        Skip running `cognitally --doctor` after installation
   --local            Install from local sibling `cognitally` binary instead of downloading
-  --version <tag>    Pin GitHub release tag (default: v0.1.1)
+  --version <tag>    Pin GitHub release tag or 'latest' (default: v0.1.2)
   --uninstall        Remove cognitally and tokdash from INSTALL_DIR
   -h, --help         Show this help message
 
 Environment Variables:
   COGNITALLY_INSTALL_DIR      Override target bin directory (default: $HOME/.local/bin)
-  COGNITALLY_VERSION          Override release tag (default: v0.1.1)
+  COGNITALLY_VERSION          Override release tag (default: v0.1.2)
   COGNITALLY_LOCAL_BINARY     Explicit path to a local cognitally binary
   COGNITALLY_EXPECTED_SHA256  Override expected SHA-256 digest (otherwise mandatory from SHA256SUMS)
   COGNITALLY_SKIP_DOCTOR=1    Equivalent to --no-doctor
@@ -170,13 +170,14 @@ download_with_client() {
     fi
 }
 
-# 3. 获取二进制并锁定对应来源的 SHA256SUMS
+# 3. 获取二进制并严格锁定来源（固定版本绝不静默回退到 latest）
 TAG_RELEASE_BASE="https://github.com/${REPO}/releases/download/${RELEASE_TAG}"
 LATEST_RELEASE_BASE="https://github.com/${REPO}/releases/latest/download"
 RAW_TAG_BASE="https://raw.githubusercontent.com/${REPO}/${RELEASE_TAG}"
 USED_LOCAL=false
 LOCAL_DIR=""
 SOURCE_SUMS_URL=""
+FALLBACK_SUMS_URL=""
 
 if [ -n "${COGNITALLY_LOCAL_BINARY:-}" ]; then
     if [ ! -f "$COGNITALLY_LOCAL_BINARY" ]; then
@@ -187,47 +188,62 @@ if [ -n "${COGNITALLY_LOCAL_BINARY:-}" ]; then
     cp "$COGNITALLY_LOCAL_BINARY" "$TEMP_PATH"
     USED_LOCAL=true
     LOCAL_DIR="$(cd "$(dirname "$COGNITALLY_LOCAL_BINARY")" && pwd)"
-elif [ "$PREFER_LOCAL" = true ] && [ -n "$LOCAL_SIBLING" ]; then
+elif [ "$PREFER_LOCAL" = true ]; then
+    if [ -z "$LOCAL_SIBLING" ]; then
+        echo -e "${RED}错误: 已指定 --local 但当前目录未找到 ${BINARY_NAME}。${NC}" >&2
+        exit 1
+    fi
     echo -e "==> 使用本地仓库二进制: ${LOCAL_SIBLING}"
     cp "$LOCAL_SIBLING" "$TEMP_PATH"
     USED_LOCAL=true
     LOCAL_DIR="$SCRIPT_DIR"
 else
     if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-        if [ -n "$LOCAL_SIBLING" ]; then
-            echo -e "${YELLOW}未检测到 curl/wget，回退使用本地预置发布二进制...${NC}"
-            cp "$LOCAL_SIBLING" "$TEMP_PATH"
-            USED_LOCAL=true
-            LOCAL_DIR="$SCRIPT_DIR"
+        echo -e "${RED}错误: 未找到 curl 或 wget；若需离线本地安装请显式传入 --local。${NC}" >&2
+        exit 1
+    fi
+    if [ "$RELEASE_TAG" = "latest" ]; then
+        echo -e "==> 正在从 GitHub Releases (latest) 下载独立可执行二进制..."
+        if download_with_client "${LATEST_RELEASE_BASE}/${BINARY_NAME}" "$TEMP_PATH"; then
+            SOURCE_SUMS_URL="${LATEST_RELEASE_BASE}/SHA256SUMS"
         else
-            echo -e "${RED}错误: 未找到 curl 或 wget，请先安装其中之一。${NC}" >&2
+            echo -e "${RED}下载 latest 版本失败，已中止（保留原有安装未改动）。${NC}" >&2
             exit 1
         fi
     else
-        echo -e "==> 正在从 GitHub Releases (${RELEASE_TAG}) 下载独立可执行二进制..."
+        echo -e "==> 正在从指定版本 ${RELEASE_TAG} 下载独立可执行二进制（禁止回退到 latest）..."
         if download_with_client "${TAG_RELEASE_BASE}/${BINARY_NAME}" "$TEMP_PATH"; then
             SOURCE_SUMS_URL="${TAG_RELEASE_BASE}/SHA256SUMS"
-        elif download_with_client "${LATEST_RELEASE_BASE}/${BINARY_NAME}" "$TEMP_PATH"; then
-            echo -e "${YELLOW}指定标签下载受阻，已切换 GitHub Releases latest。${NC}"
-            SOURCE_SUMS_URL="${LATEST_RELEASE_BASE}/SHA256SUMS"
+            FALLBACK_SUMS_URL="${RAW_TAG_BASE}/SHA256SUMS"
         elif download_with_client "${RAW_TAG_BASE}/${BINARY_NAME}" "$TEMP_PATH"; then
-            echo -e "${YELLOW}Releases 下载受阻，已切换 ${RELEASE_TAG} 仓库镜像源。${NC}"
+            echo -e "${YELLOW}Releases CDN 下载受阻，已切换同一标签 ${RELEASE_TAG} 的源码仓库镜像源。${NC}"
             SOURCE_SUMS_URL="${RAW_TAG_BASE}/SHA256SUMS"
-        elif [ -n "$LOCAL_SIBLING" ]; then
-            echo -e "${YELLOW}网络下载受阻，使用本地预置发布二进制...${NC}"
-            cp "$LOCAL_SIBLING" "$TEMP_PATH"
-            USED_LOCAL=true
-            LOCAL_DIR="$SCRIPT_DIR"
         else
-            echo -e "${RED}下载失败，请检查网络连接或 GitHub 访问情况（保留原有安装未改动）。${NC}" >&2
+            echo -e "${RED}错误: 无法从标签 ${RELEASE_TAG} 获取二进制文件（已禁止静默回退到 latest，保留原有安装未改动）。${NC}" >&2
             exit 1
         fi
     fi
 fi
 
-# 4. 校验 Zipapp 归档结构 + 强制 SHA-256 完整性校验（Fail-Closed）
-if ! python3 -c 'import sys, zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)' "$TEMP_PATH"; then
-    echo -e "${RED}错误: 获取到的文件不是有效的 Python Zipapp 归档（已中止并保留旧版）。${NC}" >&2
+# 4. 校验 Zipapp 归档结构 + BUILD_MANIFEST.json 版本匹配 + 强制 SHA-256（Fail-Closed）
+if ! python3 - "$TEMP_PATH" "$RELEASE_TAG" <<'PY'
+import json, sys, zipfile
+path, tag = sys.argv[1], sys.argv[2]
+if not zipfile.is_zipfile(path):
+    sys.stderr.write("文件不是有效的 Python Zipapp 归档。\n")
+    sys.exit(1)
+with zipfile.ZipFile(path, "r") as zf:
+    if "BUILD_MANIFEST.json" not in zf.namelist():
+        sys.stderr.write("归档缺少 BUILD_MANIFEST.json 构建溯源清单。\n")
+        sys.exit(2)
+    manifest = json.loads(zf.read("BUILD_MANIFEST.json").decode("utf-8"))
+actual_ver = str(manifest.get("version") or "").strip()
+if tag != "latest" and actual_ver != tag.lstrip("v"):
+    sys.stderr.write(f"版本不匹配: 请求标签 {tag}，但包内 BUILD_MANIFEST.version 为 {actual_ver}。\n")
+    sys.exit(3)
+PY
+then
+    echo -e "${RED}错误: Zipapp 结构或版本号校验失败（已中止并保留旧版）。${NC}" >&2
     exit 1
 fi
 
@@ -255,8 +271,8 @@ if [ -z "$EXPECTED_SHA256" ]; then
             EXPECTED_SHA256="$(awk '$2 == "cognitally" {print tolower($1); exit}' "$LOCAL_SUMS" || true)"
         fi
     else
-        echo -e "==> 正在获取并校验 SHA256SUMS..."
-        if download_with_client "$SOURCE_SUMS_URL" "$SUMS_TEMP" true || download_with_client "${RAW_TAG_BASE}/SHA256SUMS" "$SUMS_TEMP" true; then
+        echo -e "==> 正在获取并校验同源 SHA256SUMS..."
+        if download_with_client "$SOURCE_SUMS_URL" "$SUMS_TEMP" true || { [ -n "$FALLBACK_SUMS_URL" ] && download_with_client "$FALLBACK_SUMS_URL" "$SUMS_TEMP" true; }; then
             EXPECTED_SHA256="$(awk '$2 == "cognitally" {print tolower($1); exit}' "$SUMS_TEMP" || true)"
         fi
     fi

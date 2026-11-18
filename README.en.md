@@ -6,7 +6,7 @@
 
 *Zero-latency passive stream accounting across 14 mainstream AI coding agents + Read-only Autonomous MCP Budget Defense.*
 
-[![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
+[![Version](https://img.shields.io/badge/Release-v0.1.2-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](#-quick-install-one-liner)
 [![MCP 2024-11-05](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg)](https://modelcontextprotocol.io/)
 [![Zero Proxy](https://img.shields.io/badge/Proxy-Zero%20Overhead-success.svg)](#-local-first-security--privacy)
@@ -67,7 +67,7 @@ Developers running autonomous coding agents such as **Claude Code, Codex CLI, Cu
 Install the standalone zipapp executable into `~/.local/bin` (creates both `cognitally` and `tokdash` symlink):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash
 ```
 
 <details>
@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1
 
 ```bash
 # Custom install dir and skip post-install --doctor
-COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --no-doctor
+COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash -s -- --no-doctor
 
 # Install directly from a local git clone with SHA256SUMS verification
 git clone https://github.com/kamanager2012/tokdash-releases.git
@@ -88,7 +88,7 @@ cd tokdash-releases && bash install.sh --local
 Run in PowerShell (filters out Windows Store `python.exe` stub aliases automatically):
 
 ```powershell
-irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.ps1 | iex
+irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.ps1 | iex
 ```
 
 Verify your setup immediately:
@@ -229,7 +229,7 @@ Both `install.sh` and `install.ps1` fetch `SHA256SUMS` from the matching release
 
 ```bash
 # Linux / macOS
-curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/SHA256SUMS
+curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 cognitally --version --json
 ```
@@ -246,7 +246,7 @@ Re-run the one-line installer for your OS to download into temporary staging, ve
 ### Uninstall
 ```bash
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash -s -- --uninstall
 ```
 
 ```powershell
@@ -258,7 +258,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 
 ## 📦 Release & Support
 
-- **Latest Release**: `v0.1.1` — see [CHANGELOG.md](CHANGELOG.md)
+- **Latest Release**: `v0.1.2` — see [CHANGELOG.md](CHANGELOG.md)
 - **Issues & Feedback**: [GitHub Issues](https://github.com/kamanager2012/tokdash-releases/issues)
 
 ---

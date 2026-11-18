@@ -6,7 +6,7 @@
 
 *Zero-latency passive stream accounting across 14 mainstream AI coding agents + Read-only Autonomous MCP Budget Defense.*
 
-[![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
+[![Version](https://img.shields.io/badge/Release-v0.1.2-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](#-快速安装一行流)
 [![MCP 2024-11-05](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg)](https://modelcontextprotocol.io/)
 [![Zero Proxy](https://img.shields.io/badge/Proxy-Zero%20Overhead-success.svg)](#-安全与隐私声明-local-first-guarantee)
@@ -67,7 +67,7 @@ Live Subscription Quotas
 在终端中直接运行官方独立可执行包一键安装脚本（默认安装到 `~/.local/bin`）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash
 ```
 
 <details>
@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1
 
 ```bash
 # 指定安装目录并跳过安装后 --doctor 自检
-COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --no-doctor
+COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash -s -- --no-doctor
 
 # 从本地仓库克隆直接安装（含 SHA-256 校验）
 git clone https://github.com/kamanager2012/tokdash-releases.git
@@ -88,7 +88,7 @@ cd tokdash-releases && bash install.sh --local
 在 PowerShell（普通用户权限即可，自动过滤 Windows Store Python 空壳占位符）中运行：
 
 ```powershell
-irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.ps1 | iex
+irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.ps1 | iex
 ```
 
 安装完成后，全局自动获得 `cognitally` 及兼容别名 `tokdash` 命令：
@@ -242,7 +242,7 @@ cognitally --install-statusline
 
 ```bash
 # Linux / macOS
-curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/SHA256SUMS
+curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 cognitally --version --json
 ```
@@ -259,7 +259,7 @@ cognitally --version --json
 ### 3. 干净卸载
 ```bash
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.2/install.sh | bash -s -- --uninstall
 ```
 
 ```powershell
@@ -271,7 +271,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 
 ## 📦 发布说明与技术支持
 
-- **最新版本**：`v0.1.1`（Linux / macOS 跨版本单文件可执行 `cognitally` & Windows 原生 `cognitally.pyz`）
+- **最新版本**：`v0.1.2`（Linux / macOS 跨版本单文件可执行 `cognitally` & Windows 原生 `cognitally.pyz`）
 - **变更日志**：详见 [CHANGELOG.md](CHANGELOG.md)
 - **问题反馈与建议**：欢迎在 [GitHub Issues](https://github.com/kamanager2012/tokdash-releases/issues) 提交反馈与功能提案。
 

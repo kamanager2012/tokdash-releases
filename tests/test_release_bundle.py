@@ -92,7 +92,7 @@ class TestReleaseBundle(unittest.TestCase):
                 core_modules = [n for n in names if n.startswith("core/") and n.endswith(".py")]
                 self.assertGreaterEqual(len(core_modules), 30)
                 manifest = json.loads(zf.read("BUILD_MANIFEST.json").decode("utf-8"))
-                self.assertEqual(manifest.get("version"), "0.1.1")
+                self.assertEqual(manifest.get("version"), "0.1.2")
                 self.assertEqual(manifest.get("source_repo"), "kamanager2012/tokdash")
                 self.assertRegex(str(manifest.get("source_commit", "")), r"^[0-9a-f]{40}$")
                 manifests[archive.name] = manifest
@@ -130,9 +130,9 @@ class TestReleaseBundle(unittest.TestCase):
             env = _isolated_env(Path(tmp))
             cases = [
                 (_cli_cmd(False) + ["--help"], "Usage:"),
-                (_cli_cmd(False) + ["--version"], "Cognitally (TokDash) v0.1.1"),
+                (_cli_cmd(False) + ["--version"], "Cognitally (TokDash) v0.1.2"),
                 (_cli_cmd(True) + ["--help"], "--doctor"),
-                (_cli_cmd(True) + ["--version", "--json"], '"version": "0.1.1"'),
+                (_cli_cmd(True) + ["--version", "--json"], '"version": "0.1.2"'),
             ]
             for cmd, expected_substr in cases:
                 t0 = time.monotonic()
@@ -145,7 +145,7 @@ class TestReleaseBundle(unittest.TestCase):
             ver_json = _run(_cli_cmd(True) + ["--version", "--json"], env=env, timeout=10)
             payload = json.loads(ver_json.stdout)
             self.assertEqual(payload.get("name"), "cognitally")
-            self.assertEqual(payload.get("version"), "0.1.1")
+            self.assertEqual(payload.get("version"), "0.1.2")
             self.assertEqual(payload.get("source_commit"), expected_manifest["source_commit"])
 
     def test_cli_doctor_and_statusline_and_budget(self):
@@ -256,7 +256,7 @@ class TestReleaseBundle(unittest.TestCase):
 
                 ver = _run([str(install_dir / "cognitally.cmd"), "--version"], env=env, timeout=15)
                 self.assertEqual(ver.returncode, 0, ver.stderr)
-                self.assertIn("Cognitally (TokDash) v0.1.1", ver.stdout)
+                self.assertIn("Cognitally (TokDash) v0.1.2", ver.stdout)
 
                 bad_env = dict(env)
                 bad_env["COGNITALLY_EXPECTED_SHA256"] = "0" * 64
@@ -278,9 +278,85 @@ class TestReleaseBundle(unittest.TestCase):
                     timeout=30,
                 )
                 self.assertNotEqual(tamper_inst.returncode, 0, "Tampered SHA-256 must fail closed")
+
+                # Missing cognitally.cmd checksum in SHA256SUMS must fail closed (never silently skip launcher verification)
+                stage_missing_cmd_sum = tmp_path / "stage_missing_cmd_sum"
+                stage_missing_cmd_sum.mkdir()
+                for fname in ("install.ps1", "cognitally.pyz", "cognitally.cmd", "cognitally.ps1"):
+                    shutil.copy2(REPO_ROOT / fname, stage_missing_cmd_sum / fname)
+                sums_filtered = [
+                    ln for ln in SHA256SUMS_FILE.read_text(encoding="utf-8").splitlines()
+                    if not ln.endswith(" cognitally.cmd") and not ln.endswith("\tcognitally.cmd")
+                ]
+                (stage_missing_cmd_sum / "SHA256SUMS").write_text("\n".join(sums_filtered) + "\n", encoding="utf-8")
+                missing_sum_inst = _run(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        str(stage_missing_cmd_sum / "install.ps1"),
+                        "-InstallDir",
+                        str(install_dir),
+                        "-NoPathUpdate",
+                        "-SkipDoctor",
+                        "-Local",
+                    ],
+                    env=env,
+                    timeout=30,
+                )
+                self.assertNotEqual(missing_sum_inst.returncode, 0, "Missing cognitally.cmd SHA-256 entry must fail closed")
+
+                # Mid-promotion failure must roll back cleanly leaving all previously installed files intact
+                abort_env = dict(env)
+                abort_env["COGNITALLY_TEST_ABORT_DURING_PROMOTE"] = "1"
+                abort_inst = _run(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        str(REPO_ROOT / "install.ps1"),
+                        "-InstallDir",
+                        str(install_dir),
+                        "-NoPathUpdate",
+                        "-SkipDoctor",
+                        "-Local",
+                    ],
+                    env=abort_env,
+                    timeout=30,
+                )
+                self.assertNotEqual(abort_inst.returncode, 0, "Simulated mid-promotion failure must abort and roll back")
+                for fname in ("cognitally.pyz", "cognitally.cmd", "cognitally.ps1", "tokdash.cmd", "tokdash.ps1"):
+                    self.assertTrue((install_dir / fname).is_file(), f"Rollback must preserve {fname}")
+
+                # Mismatched pinned version must fail closed even in local stage
+                mismatch_inst = _run(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        str(REPO_ROOT / "install.ps1"),
+                        "-InstallDir",
+                        str(install_dir),
+                        "-Version",
+                        "v0.9.9",
+                        "-NoPathUpdate",
+                        "-SkipDoctor",
+                        "-Local",
+                    ],
+                    env=env,
+                    timeout=30,
+                )
+                self.assertNotEqual(mismatch_inst.returncode, 0, "Mismatched -Version must fail closed")
+
                 ver_after = _run([str(install_dir / "cognitally.cmd"), "--version"], env=env, timeout=15)
                 self.assertEqual(ver_after.returncode, 0, ver_after.stderr)
-                self.assertIn("Cognitally (TokDash) v0.1.1", ver_after.stdout)
+                self.assertIn("Cognitally (TokDash) v0.1.2", ver_after.stdout)
 
                 uninst = _run(
                     [
@@ -323,15 +399,20 @@ class TestReleaseBundle(unittest.TestCase):
 
             ver = _run([str(installed_alias), "--version"], env=env, timeout=10)
             self.assertEqual(ver.returncode, 0, ver.stderr)
-            self.assertIn("Cognitally (TokDash) v0.1.1", ver.stdout)
+            self.assertIn("Cognitally (TokDash) v0.1.2", ver.stdout)
 
             bad_env = dict(env)
             bad_env["COGNITALLY_EXPECTED_SHA256"] = "0" * 64
             tamper_inst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--no-doctor"], env=bad_env, timeout=20)
             self.assertNotEqual(tamper_inst.returncode, 0, "Tampered SHA-256 must fail closed")
+
+            # Version mismatch in BUILD_MANIFEST.json must fail closed and preserve installed binary
+            ver_mismatch = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--no-doctor", "--version", "v0.9.9"], env=env, timeout=20)
+            self.assertNotEqual(ver_mismatch.returncode, 0, "Mismatched --version must fail closed")
+
             ver_after = _run([str(installed_alias), "--version"], env=env, timeout=10)
             self.assertEqual(ver_after.returncode, 0, ver_after.stderr)
-            self.assertIn("Cognitally (TokDash) v0.1.1", ver_after.stdout)
+            self.assertIn("Cognitally (TokDash) v0.1.2", ver_after.stdout)
 
             uninst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--uninstall"], env=env, timeout=20)
             self.assertEqual(uninst.returncode, 0, uninst.stdout + uninst.stderr)
@@ -344,6 +425,14 @@ class TestReleaseBundle(unittest.TestCase):
             self.assertIn(b"\r\n", raw, f"{win_file} must use CRLF line endings")
             # Ensure no bare LF exists outside CRLF pairs
             self.assertNotIn(b"\n", raw.replace(b"\r\n", b""), f"{win_file} has bare LF line endings")
+
+        install_sh_txt = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
+        self.assertIn("BUILD_MANIFEST.json", install_sh_txt)
+        self.assertIn('[ "$RELEASE_TAG" = "latest" ]', install_sh_txt)
+        install_ps1_txt = (REPO_ROOT / "install.ps1").read_text(encoding="utf-8")
+        self.assertIn("BUILD_MANIFEST.json", install_ps1_txt)
+        self.assertIn("Assert-ArtifactSha256", install_ps1_txt)
+        self.assertIn("BackupDir", install_ps1_txt)
 
         for doc_name in ("README.md", "README.en.md"):
             doc_txt = (REPO_ROOT / doc_name).read_text(encoding="utf-8")

@@ -2,6 +2,15 @@
 
 All notable updates to the **Cognitally / TokDash** standalone binary distribution (`tokdash-releases`) are documented in this file.
 
+## [v0.1.2] - 2026-11-18
+
+### Security & Integrity (`G1`, `G3`, `G4`)
+- **Semantic Snapshot Digest (`snapshot_digest` vs `accounting_generation`)**: Separated accounting state digest from full snapshot semantics in `core/concurrency/digest.py` and `core/concurrency/snapshot.py` so changes in Codex/Claude/Grok quota fields or per-period workspace `ranges` always invalidate stale disk snapshots instead of refreshing TTL with old quotas.
+- **No Silent Fallback on Pinned Installs (`install.sh` / `install.ps1`)**: Pinned version installs (`v0.1.2` or explicit `--version`/`-Version <tag>`) now download exclusively from that tag's GitHub Release or tag-matched raw source and verify `BUILD_MANIFEST.json` `"version"` inside the package (`latest` is used only when explicitly requested).
+- **Windows Transactional Swap & All-Launcher SHA-256 (`install.ps1`)**: Staged all 5 Windows files in a temporary directory, pre-backed up existing targets, added full rollback restoration if promotion fails, and enforced fail-closed SHA-256 verification for `cognitally.pyz`, `cognitally.cmd`, and `cognitally.ps1` without skipping missing entries.
+- **Verified Cross-Process Lock Fallback (`core/storage.py`)**: Upgraded lock fallback from unlocked `"unsupported"` execution to an atomic `O_CREAT | O_EXCL` lockfile mutex (`acquire_path_lock`) with fail-closed error propagation when mutual exclusion cannot be guaranteed.
+- **Signed Tags & GitHub Immutability Governance**: Embedded `BUILD_MANIFEST.json` points to `source_commit: "c4c904de39292d0391000eeb8f1ac5d38e146a85"`, tags are SSH-signed, and repository rulesets + GitHub Immutable Releases are enabled on `tokdash-releases`.
+
 ## [v0.1.1] - 2026-11-18
 
 ### Security & Integrity (`G3`, `G4`)
