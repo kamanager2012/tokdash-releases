@@ -6,7 +6,7 @@ All notable updates to the **Cognitally / TokDash** standalone binary distributi
 
 ### Security & Integrity (`G3`, `G4`)
 - **Mandatory Online & Local SHA-256 Verification (`install.sh` / `install.ps1`)**: Both installers now download/read `SHA256SUMS` from the matching release/tag source (or local directory), validate 64-hex digests, stage all artifacts into temporary files before promotion, and fail closed without overwriting an existing working installation.
-- **Immutable Release Provenance (`BUILD_MANIFEST.json`)**: `cognitally` and `cognitally.pyz` embed `BUILD_MANIFEST.json` (`version: "0.1.1"`, `source_repo: "kamanager2012/tokdash"`, `source_commit: "2274d927c6e55155d859cb2e4ccbaa212c4b2489"`), exposed directly via `cognitally --version --json`.
+- **Immutable Release Provenance (`BUILD_MANIFEST.json`)**: `cognitally` and `cognitally.pyz` embed `BUILD_MANIFEST.json` (`version: "0.1.1"`, `source_repo: "kamanager2012/tokdash"`, `source_commit: "ea5b33de693577ccec4534455b65835fd5ab7bdb"`), exposed directly via `cognitally --version --json`.
 - **Version-Pinned Installers & Docs**: Added `--version <tag>` (`install.sh`) and `-Version <tag>` (`install.ps1`) defaulting to `v0.1.1`, and pinned documentation install URLs to immutable tag `v0.1.1`.
 - **Clean Historical Attribution**: Restored `v0.1.0` release history cleanly instead of overwriting existing release tags.
 
@@ -15,6 +15,7 @@ All notable updates to the **Cognitally / TokDash** standalone binary distributi
 - **Snapshot Body Integrity Check**: Verifies the full payload structure alongside the 512-byte header generation check so corrupted snapshot files self-heal instead of extending stale TTLs.
 - **Bounded Non-Blocking Cross-Process Locks**: Distinguishes lock contention timeouts from unsupported filesystems rather than silently falling back to unlocked writes.
 - **Expanded Automated Verification**: Added fault-injection, multi-process concurrency contention, Windows CI matrix (`windows-latest`), and installer tamper-rollback tests.
+- **Terminal Observatory Hardening (`G2`, `G3`, `G4`)**: Explicit `--period today` never falls back to `all`, unified `cr / (in + cr + cw)` Cache Hit %, period-scoped `Top Workspaces`, 80/100/120-column adaptive widths, and explicit quota provenance/timestamp with `[LIVE]` / `[STALE]` / `[UNKNOWN]` indicators.
 
 ## [v0.1.0] - 2026-11-04 (Distribution Hardening Update - 2026-11-18)
 

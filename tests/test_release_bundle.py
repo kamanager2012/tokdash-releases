@@ -181,6 +181,13 @@ class TestReleaseBundle(unittest.TestCase):
             self.assertIn("TOTAL", sum_proc.stdout)
             self.assertNotIn("\033[", sum_proc.stdout)
 
+            explicit_today = _run(_cli_cmd(False) + ["--summary", "--period", "today", "--no-color"], env=env, timeout=20)
+            self.assertEqual(explicit_today.returncode, 0, explicit_today.stderr)
+            self.assertIn("view:today", explicit_today.stdout)
+            self.assertNotIn("view:all", explicit_today.stdout)
+            for ln in explicit_today.stdout.splitlines():
+                self.assertLessEqual(len(ln), 80, f"Default 80-col output exceeded 80 chars: {ln!r}")
+
     def test_mcp_stdio_protocol_handshake(self):
         requests = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
