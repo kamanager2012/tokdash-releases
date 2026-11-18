@@ -6,7 +6,7 @@
 
 *Zero-latency passive stream accounting across 14 mainstream AI coding agents + Read-only Autonomous MCP Budget Defense.*
 
-[![Version](https://img.shields.io/badge/Release-v0.1.0-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
+[![Version](https://img.shields.io/badge/Release-v0.1.1-brightgreen.svg)](https://github.com/kamanager2012/tokdash-releases/releases)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-blue.svg)](#-快速安装一行流)
 [![MCP 2024-11-05](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2.svg)](https://modelcontextprotocol.io/)
 [![Zero Proxy](https://img.shields.io/badge/Proxy-Zero%20Overhead-success.svg)](#-安全与隐私声明-local-first-guarantee)
@@ -67,7 +67,7 @@ Live Subscription Quotas
 在终端中直接运行官方独立可执行包一键安装脚本（默认安装到 `~/.local/bin`）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash
 ```
 
 <details>
@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main
 
 ```bash
 # 指定安装目录并跳过安装后 --doctor 自检
-COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.sh | bash -s -- --no-doctor
+COGNITALLY_INSTALL_DIR="$HOME/bin" curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --no-doctor
 
 # 从本地仓库克隆直接安装（含 SHA-256 校验）
 git clone https://github.com/kamanager2012/tokdash-releases.git
@@ -88,7 +88,7 @@ cd tokdash-releases && bash install.sh --local
 在 PowerShell（普通用户权限即可，自动过滤 Windows Store Python 空壳占位符）中运行：
 
 ```powershell
-irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.ps1 | iex
 ```
 
 安装完成后，全局自动获得 `cognitally` 及兼容别名 `tokdash` 命令：
@@ -231,33 +231,35 @@ cognitally --install-statusline
 
 - **完全本地化**：所有会话分析均在您的本地机器完成，绝不向任何第三方服务器上传您的代码、Prompt 或敏感上下文；
 - **只读零侵入**：以只读方式被动访问本地既有日志文件与数据库，不篡改 Agent 原始配置，不建立网络中间人拦截；
-- **供应链安全**：核心路径 100% CPython 标准库，提供 `SHA256SUMS` 校验清单，安装脚本在覆盖目标文件前自动验证 Zipapp 归档结构完整性。
+- **供应链安全与发行溯源**：核心路径 100% CPython 标准库，安装脚本在覆盖既有程序前强制下载并校验 [`SHA256SUMS`](SHA256SUMS) 与 Zipapp 完整性（失败不覆盖旧版）；包内嵌入 `BUILD_MANIFEST.json`，可通过 `cognitally --version --json` 验证构建对应的源码提交 (`source_commit`)。
 
 ---
 
 ## 🔐 完整性校验、升级与卸载
 
-### 1. SHA-256 完整性校验
-下载本仓库根目录下发布的 [`SHA256SUMS`](SHA256SUMS) 后执行校验：
+### 1. SHA-256 完整性校验与构建溯源
+在线一键安装会自动拉取同版本 `SHA256SUMS` 并强制执行 fail-closed SHA-256 比对；如需手工核验：
 
 ```bash
 # Linux / macOS
-curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/SHA256SUMS
+curl -fsSLO https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
+cognitally --version --json
 ```
 
 ```powershell
 # Windows PowerShell
 Get-FileHash .\cognitally.pyz -Algorithm SHA256
+cognitally --version --json
 ```
 
 ### 2. 升级到最新版本
-重新运行对应平台的一键安装命令即可原子覆盖升级，历史本地会话账本与缓存配置完全保留。
+重新运行对应平台的一键安装命令即可先在临时文件完成校验再原子切换覆盖，历史本地会话账本与缓存配置完全保留；校验失败则原安装文件保持不变。
 
 ### 3. 干净卸载
 ```bash
 # Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.sh | bash -s -- --uninstall
 ```
 
 ```powershell
@@ -269,7 +271,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 
 ## 📦 发布说明与技术支持
 
-- **最新版本**：`v0.1.0`（Linux / macOS 跨版本单文件可执行 `cognitally` & Windows 原生 `cognitally.pyz`）
+- **最新版本**：`v0.1.1`（Linux / macOS 跨版本单文件可执行 `cognitally` & Windows 原生 `cognitally.pyz`）
 - **变更日志**：详见 [CHANGELOG.md](CHANGELOG.md)
 - **问题反馈与建议**：欢迎在 [GitHub Issues](https://github.com/kamanager2012/tokdash-releases/issues) 提交反馈与功能提案。
 

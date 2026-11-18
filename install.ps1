@@ -1,12 +1,13 @@
 # Cognitally (TokDash) Windows Native PowerShell Installer
 # Usage:
 #   Local:     powershell -ExecutionPolicy Bypass -File .\install.ps1
-#   Remote:    irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main/install.ps1 | iex
+#   Remote:    irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.ps1 | iex
 #   Uninstall: powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 
 [CmdletBinding()]
 param(
     [string]$InstallDir = $(Join-Path $env:LOCALAPPDATA "Programs\cognitally"),
+    [string]$Version = $(if ($env:COGNITALLY_VERSION) { $env:COGNITALLY_VERSION } else { "v0.1.1" }),
     [switch]$NoPathUpdate,
     [switch]$SkipDoctor,
     [switch]$Local,
@@ -40,7 +41,7 @@ if ($Uninstall) {
 }
 
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host " 🚀 Cognitally (TokDash) Windows Native Installer" -ForegroundColor Cyan
+Write-Host " 🚀 Cognitally (TokDash) Windows Native Installer ($Version)" -ForegroundColor Cyan
 Write-Host "================================================================================" -ForegroundColor Cyan
 
 function Resolve-PythonLauncher {
@@ -81,6 +82,28 @@ function Resolve-PythonLauncher {
     return $null
 }
 
+function Get-FileSha256 {
+    param([string]$PyExe, [string[]]$PyPrefix, [string]$Path)
+    $out = & $PyExe @PyPrefix -c "import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], rb).read()).hexdigest())" "$Path"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to compute SHA-256 checksum for $Path"
+    }
+    return ($out | Select-Object -First 1).Trim().ToLowerInvariant()
+}
+
+function Get-ExpectedSha256 {
+    param([string]$SumsPath, [string]$ArtifactName)
+    if (-not $SumsPath -or -not (Test-Path $SumsPath)) {
+        return $null
+    }
+    $Escaped = [regex]::Escape($ArtifactName)
+    $MatchLine = Get-Content $SumsPath | Where-Object { $_ -match "^[0-9a-fA-F]{64}\s+$Escaped$" } | Select-Object -First 1
+    if ($MatchLine) {
+        return (($MatchLine -split "\s+")[0]).ToLowerInvariant()
+    }
+    return $null
+}
+
 # 1. Check real Python 3 (>=3.8) environment (filtering out Windows Store stubs)
 Write-Host "==> Checking Python runtime (>= 3.8)..." -ForegroundColor Yellow
 $PythonInfo = Resolve-PythonLauncher
@@ -90,118 +113,173 @@ if (-not $PythonInfo) {
 }
 Write-Host "    Found Python launcher: $($PythonInfo.Label) ($($PythonInfo.Version))" -ForegroundColor Green
 
-# 2. Setup target install directory
+$PyExe = $PythonInfo.Exe
+$PyPrefix = $PythonInfo.Prefix
+
+# 2. Setup target install directory & isolated staging temp paths
 Write-Host "==> Target directory: $InstallDir" -ForegroundColor Yellow
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
-# 3. Locate local artifacts or download from GitHub Releases
-$ScriptRoot = $PSScriptRoot
-$LocalCandidates = @()
-if ($ScriptRoot) {
-    $LocalCandidates += $ScriptRoot
-    $LocalCandidates += (Join-Path $ScriptRoot "dist")
-}
+$TagSuffix = [guid]::NewGuid().ToString("N")
+$PyzTemp = "$PyzDest.tmp.$TagSuffix"
+$CmdTemp = "$CmdDest.tmp.$TagSuffix"
+$Ps1Temp = "$Ps1Dest.tmp.$TagSuffix"
+$SumsTemp = Join-Path $InstallDir "SHA256SUMS.tmp.$TagSuffix"
 
-$LocalBaseDir = $null
-foreach ($Dir in $LocalCandidates) {
-    $CandPyz = Join-Path $Dir "cognitally.pyz"
-    $CandCmd = Join-Path $Dir "cognitally.cmd"
-    if ((Test-Path $CandPyz) -and (Test-Path $CandCmd)) {
-        $LocalBaseDir = $Dir
-        break
-    }
-}
-
-$PyzTemp = "$PyzDest.tmp"
-$UsedLocal = $false
-
-if ($LocalBaseDir -and ($Local -or (Test-Path (Join-Path $LocalBaseDir "cognitally.pyz")))) {
-    Write-Host "==> Installing from local repository artifacts ($LocalBaseDir)..." -ForegroundColor Yellow
-    Copy-Item -Path (Join-Path $LocalBaseDir "cognitally.pyz") -Destination $PyzTemp -Force
-    Copy-Item -Path (Join-Path $LocalBaseDir "cognitally.cmd") -Destination $CmdDest -Force
-    $LocalPs1 = Join-Path $LocalBaseDir "cognitally.ps1"
-    if (Test-Path $LocalPs1) {
-        Copy-Item -Path $LocalPs1 -Destination $Ps1Dest -Force
-    }
-    $UsedLocal = $true
-} else {
-    Write-Host "==> Downloading latest release package from GitHub Releases..." -ForegroundColor Yellow
-    $ReleaseBase = "https://github.com/kamanager2012/tokdash-releases/releases/latest/download"
-    $RawBase = "https://raw.githubusercontent.com/kamanager2012/tokdash-releases/main"
-
-    try {
-        Invoke-WebRequest -Uri "$ReleaseBase/cognitally.pyz" -OutFile $PyzTemp -UseBasicParsing
-    } catch {
-        Invoke-WebRequest -Uri "$RawBase/cognitally.pyz" -OutFile $PyzTemp -UseBasicParsing
+try {
+    # 3. Locate local artifacts or download from GitHub Releases into staging files
+    $ScriptRoot = $PSScriptRoot
+    $LocalCandidates = @()
+    if ($ScriptRoot) {
+        $LocalCandidates += $ScriptRoot
+        $LocalCandidates += (Join-Path $ScriptRoot "dist")
     }
 
-    try {
-        Invoke-WebRequest -Uri "$ReleaseBase/cognitally.cmd" -OutFile $CmdDest -UseBasicParsing
-    } catch {
-        Invoke-WebRequest -Uri "$RawBase/cognitally.cmd" -OutFile $CmdDest -UseBasicParsing
+    $LocalBaseDir = $null
+    foreach ($Dir in $LocalCandidates) {
+        $CandPyz = Join-Path $Dir "cognitally.pyz"
+        $CandCmd = Join-Path $Dir "cognitally.cmd"
+        if ((Test-Path $CandPyz) -and (Test-Path $CandCmd)) {
+            $LocalBaseDir = $Dir
+            break
+        }
     }
 
-    try {
-        Invoke-WebRequest -Uri "$ReleaseBase/cognitally.ps1" -OutFile $Ps1Dest -UseBasicParsing
-    } catch {
+    $UsedLocal = $false
+    $HasPs1 = $false
+    $SumsPathForCheck = $null
+
+    if ($LocalBaseDir -and ($Local -or (Test-Path (Join-Path $LocalBaseDir "cognitally.pyz")))) {
+        Write-Host "==> Staging local repository artifacts ($LocalBaseDir)..." -ForegroundColor Yellow
+        Copy-Item -Path (Join-Path $LocalBaseDir "cognitally.pyz") -Destination $PyzTemp -Force
+        Copy-Item -Path (Join-Path $LocalBaseDir "cognitally.cmd") -Destination $CmdTemp -Force
+        $LocalPs1 = Join-Path $LocalBaseDir "cognitally.ps1"
+        if (Test-Path $LocalPs1) {
+            Copy-Item -Path $LocalPs1 -Destination $Ps1Temp -Force
+            $HasPs1 = $true
+        }
+        $LocalSums = Join-Path $LocalBaseDir "SHA256SUMS"
+        if (Test-Path $LocalSums) {
+            $SumsPathForCheck = $LocalSums
+        }
+        $UsedLocal = $true
+    } else {
+        Write-Host "==> Downloading release package ($Version) from GitHub Releases..." -ForegroundColor Yellow
+        $TagBase = "https://github.com/kamanager2012/tokdash-releases/releases/download/$Version"
+        $LatestBase = "https://github.com/kamanager2012/tokdash-releases/releases/latest/download"
+        $RawBase = "https://raw.githubusercontent.com/kamanager2012/tokdash-releases/$Version"
+
+        $ActiveBase = $null
+        foreach ($CandBase in @($TagBase, $LatestBase, $RawBase)) {
+            try {
+                Invoke-WebRequest -Uri "$CandBase/cognitally.pyz" -OutFile $PyzTemp -UseBasicParsing
+                $ActiveBase = $CandBase
+                break
+            } catch {
+                continue
+            }
+        }
+        if (-not $ActiveBase) {
+            throw "Failed to download cognitally.pyz from GitHub Releases (existing installation unchanged)."
+        }
+
         try {
-            Invoke-WebRequest -Uri "$RawBase/cognitally.ps1" -OutFile $Ps1Dest -UseBasicParsing
+            Invoke-WebRequest -Uri "$ActiveBase/cognitally.cmd" -OutFile $CmdTemp -UseBasicParsing
         } catch {
-            # Optional PowerShell shim
+            Invoke-WebRequest -Uri "$RawBase/cognitally.cmd" -OutFile $CmdTemp -UseBasicParsing
+        }
+
+        try {
+            Invoke-WebRequest -Uri "$ActiveBase/cognitally.ps1" -OutFile $Ps1Temp -UseBasicParsing
+            $HasPs1 = $true
+        } catch {
+            try {
+                Invoke-WebRequest -Uri "$RawBase/cognitally.ps1" -OutFile $Ps1Temp -UseBasicParsing
+                $HasPs1 = $true
+            } catch {
+                $HasPs1 = $false
+            }
+        }
+
+        if (-not $env:COGNITALLY_EXPECTED_SHA256) {
+            $SumsFetched = $false
+            foreach ($SumsBase in @($ActiveBase, $RawBase)) {
+                try {
+                    Invoke-WebRequest -Uri "$SumsBase/SHA256SUMS" -OutFile $SumsTemp -UseBasicParsing
+                    $SumsFetched = $true
+                    break
+                } catch {
+                    continue
+                }
+            }
+            if ($SumsFetched -and (Test-Path $SumsTemp)) {
+                $SumsPathForCheck = $SumsTemp
+            }
         }
     }
-}
 
-# 4. Verify Zipapp archive integrity & optional SHA-256
-$PyExe = $PythonInfo.Exe
-$PyPrefix = $PythonInfo.Prefix
-& $PyExe @PyPrefix -c "import sys, zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" "$PyzTemp"
-if ($LASTEXITCODE -ne 0) {
-    Remove-Item -Path $PyzTemp -Force -ErrorAction SilentlyContinue
-    Write-Error "Error: Downloaded cognitally.pyz is not a valid Python Zipapp archive."
-    exit 1
-}
-
-$ExpectedSha = $env:COGNITALLY_EXPECTED_SHA256
-if (-not $ExpectedSha -and $UsedLocal -and $LocalBaseDir) {
-    $SumsPath = Join-Path $LocalBaseDir "SHA256SUMS"
-    if (Test-Path $SumsPath) {
-        $MatchLine = Get-Content $SumsPath | Where-Object { $_ -match "\s+cognitally\.pyz$" } | Select-Object -First 1
-        if ($MatchLine) {
-            $ExpectedSha = ($MatchLine -split "\s+")[0]
-        }
-    }
-}
-
-if ($ExpectedSha) {
-    $ActualSha = (& $PyExe @PyPrefix -c "import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$PyzTemp").Trim().ToLowerInvariant()
+    # 4. Verify Zipapp archive integrity & MANDATORY SHA-256 checksum (Fail-Closed)
+    & $PyExe @PyPrefix -c "import sys, zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" "$PyzTemp"
     if ($LASTEXITCODE -ne 0) {
-        Remove-Item -Path $PyzTemp -Force -ErrorAction SilentlyContinue
-        Write-Error "Error: Failed to compute SHA-256 checksum for cognitally.pyz."
-        exit 1
+        throw "Downloaded cognitally.pyz is not a valid Python Zipapp archive (existing installation unchanged)."
     }
-    if ($ActualSha -ne $ExpectedSha.ToLowerInvariant()) {
-        Remove-Item -Path $PyzTemp -Force -ErrorAction SilentlyContinue
-        Write-Error "Error: SHA-256 mismatch for cognitally.pyz. Expected $ExpectedSha, got $ActualSha"
-        exit 1
+
+    $ExpectedPyzSha = if ($env:COGNITALLY_EXPECTED_SHA256) { $env:COGNITALLY_EXPECTED_SHA256.Trim().ToLowerInvariant() } else { Get-ExpectedSha256 -SumsPath $SumsPathForCheck -ArtifactName "cognitally.pyz" }
+    if (-not $ExpectedPyzSha -or ($ExpectedPyzSha -notmatch "^[0-9a-f]{64}$")) {
+        throw "Missing or invalid SHA-256 expected checksum for cognitally.pyz (fail-closed; existing installation unchanged)."
     }
-    Write-Host "    SHA-256 verified: $ActualSha" -ForegroundColor Green
+
+    $ActualPyzSha = Get-FileSha256 -PyExe $PyExe -PyPrefix $PyPrefix -Path $PyzTemp
+    if ($ActualPyzSha -ne $ExpectedPyzSha) {
+        throw "SHA-256 mismatch for cognitally.pyz. Expected $ExpectedPyzSha, got $ActualPyzSha (existing installation unchanged)."
+    }
+    Write-Host "    SHA-256 verified (cognitally.pyz): $ActualPyzSha" -ForegroundColor Green
+
+    if (-not $env:COGNITALLY_EXPECTED_SHA256 -and $SumsPathForCheck) {
+        $ExpectedCmdSha = Get-ExpectedSha256 -SumsPath $SumsPathForCheck -ArtifactName "cognitally.cmd"
+        if ($ExpectedCmdSha) {
+            $ActualCmdSha = Get-FileSha256 -PyExe $PyExe -PyPrefix $PyPrefix -Path $CmdTemp
+            if ($ActualCmdSha -ne $ExpectedCmdSha) {
+                throw "SHA-256 mismatch for cognitally.cmd. Expected $ExpectedCmdSha, got $ActualCmdSha"
+            }
+        }
+        if ($HasPs1) {
+            $ExpectedPs1Sha = Get-ExpectedSha256 -SumsPath $SumsPathForCheck -ArtifactName "cognitally.ps1"
+            if ($ExpectedPs1Sha) {
+                $ActualPs1Sha = Get-FileSha256 -PyExe $PyExe -PyPrefix $PyPrefix -Path $Ps1Temp
+                if ($ActualPs1Sha -ne $ExpectedPs1Sha) {
+                    throw "SHA-256 mismatch for cognitally.ps1. Expected $ExpectedPs1Sha, got $ActualPs1Sha"
+                }
+            }
+        }
+    }
+
+    # 5. Atomic promotion only after all verification gates pass
+    Move-Item -Path $PyzTemp -Destination $PyzDest -Force
+    Move-Item -Path $CmdTemp -Destination $CmdDest -Force
+    if ($HasPs1 -and (Test-Path $Ps1Temp)) {
+        Move-Item -Path $Ps1Temp -Destination $Ps1Dest -Force
+    }
+
+    # Create tokdash.cmd & tokdash.ps1 alias shims for backward compatibility
+    $TokdashCmdContent = "@echo off`r`ncall `"%~dp0cognitally.cmd`" %*`r`n"
+    Set-Content -Path $TokdashCmdDest -Value $TokdashCmdContent -Encoding ASCII
+
+    $TokdashPs1Content = "`$ScriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n& (Join-Path `$ScriptDir `"cognitally.ps1`") @args`r`nexit `$LASTEXITCODE`r`n"
+    Set-Content -Path $TokdashPs1Dest -Value $TokdashPs1Content -Encoding UTF8
+
+    Write-Host "    Installed cognitally.pyz and cmd/ps1 shims to $InstallDir" -ForegroundColor Green
+} finally {
+    foreach ($TmpItem in @($PyzTemp, $CmdTemp, $Ps1Temp, $SumsTemp)) {
+        if ($TmpItem -and (Test-Path $TmpItem)) {
+            Remove-Item -Path $TmpItem -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
-Move-Item -Path $PyzTemp -Destination $PyzDest -Force
-
-# Create tokdash.cmd & tokdash.ps1 alias shims for backward compatibility
-$TokdashCmdContent = "@echo off`r`ncall `"%~dp0cognitally.cmd`" %*`r`n"
-Set-Content -Path $TokdashCmdDest -Value $TokdashCmdContent -Encoding ASCII
-
-$TokdashPs1Content = "`$ScriptDir = Split-Path -Parent `$MyInvocation.MyCommand.Path`r`n& (Join-Path `$ScriptDir `"cognitally.ps1`") @args`r`nexit `$LASTEXITCODE`r`n"
-Set-Content -Path $TokdashPs1Dest -Value $TokdashPs1Content -Encoding UTF8
-
-Write-Host "    Installed cognitally.pyz and cmd/ps1 shims to $InstallDir" -ForegroundColor Green
-
-# 5. PATH Registration
+# 6. PATH Registration
 if (-not $NoPathUpdate) {
     Write-Host "==> Checking User PATH environment variable..." -ForegroundColor Yellow
     $UserPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
@@ -226,7 +304,7 @@ if (-not $NoPathUpdate) {
     }
 }
 
-# 6. Doctor verification
+# 7. Doctor verification
 if (-not $SkipDoctor) {
     Write-Host "==> Verifying installation with cognitally.cmd --doctor..." -ForegroundColor Yellow
     & $CmdDest --doctor

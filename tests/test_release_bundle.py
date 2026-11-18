@@ -60,6 +60,7 @@ class TestReleaseBundle(unittest.TestCase):
     def test_zipapp_structure_and_cross_version_sources(self):
         required_entries = {
             "__main__.py",
+            "BUILD_MANIFEST.json",
             "usage.30s.py",
             "mcp_server.py",
             "budget_guard.py",
@@ -79,6 +80,7 @@ class TestReleaseBundle(unittest.TestCase):
             mode = os.stat(COGNITALLY_BIN).st_mode
             self.assertTrue(mode & stat.S_IXUSR, "cognitally must be executable by owner")
 
+        manifests = {}
         for archive in (COGNITALLY_BIN, COGNITALLY_PYZ):
             self.assertTrue(zipfile.is_zipfile(archive), f"{archive.name} must be a valid zipapp")
             with zipfile.ZipFile(archive, "r") as zf:
@@ -89,6 +91,12 @@ class TestReleaseBundle(unittest.TestCase):
                 self.assertEqual(pyc_entries, [], f"{archive.name} must not contain bytecode files")
                 core_modules = [n for n in names if n.startswith("core/") and n.endswith(".py")]
                 self.assertGreaterEqual(len(core_modules), 30)
+                manifest = json.loads(zf.read("BUILD_MANIFEST.json").decode("utf-8"))
+                self.assertEqual(manifest.get("version"), "0.1.1")
+                self.assertEqual(manifest.get("source_repo"), "kamanager2012/tokdash")
+                self.assertRegex(str(manifest.get("source_commit", "")), r"^[0-9a-f]{40}$")
+                manifests[archive.name] = manifest
+        self.assertEqual(manifests[COGNITALLY_BIN.name], manifests[COGNITALLY_PYZ.name])
 
     def test_sha256sums_integrity(self):
         self.assertTrue(SHA256SUMS_FILE.is_file(), "SHA256SUMS must exist")
@@ -115,13 +123,16 @@ class TestReleaseBundle(unittest.TestCase):
         self.assertEqual(seen_files, expected_files)
 
     def test_cli_fast_help_and_version(self):
+        with zipfile.ZipFile(COGNITALLY_PYZ, "r") as zf:
+            expected_manifest = json.loads(zf.read("BUILD_MANIFEST.json").decode("utf-8"))
+
         with tempfile.TemporaryDirectory() as tmp:
             env = _isolated_env(Path(tmp))
             cases = [
                 (_cli_cmd(False) + ["--help"], "Usage:"),
-                (_cli_cmd(False) + ["--version"], "Cognitally (TokDash) v0.1.0"),
+                (_cli_cmd(False) + ["--version"], "Cognitally (TokDash) v0.1.1"),
                 (_cli_cmd(True) + ["--help"], "--doctor"),
-                (_cli_cmd(True) + ["--version", "--json"], '"version": "0.1.0"'),
+                (_cli_cmd(True) + ["--version", "--json"], '"version": "0.1.1"'),
             ]
             for cmd, expected_substr in cases:
                 t0 = time.monotonic()
@@ -133,7 +144,9 @@ class TestReleaseBundle(unittest.TestCase):
 
             ver_json = _run(_cli_cmd(True) + ["--version", "--json"], env=env, timeout=10)
             payload = json.loads(ver_json.stdout)
-            self.assertEqual(payload, {"name": "cognitally", "version": "0.1.0"})
+            self.assertEqual(payload.get("name"), "cognitally")
+            self.assertEqual(payload.get("version"), "0.1.1")
+            self.assertEqual(payload.get("source_commit"), expected_manifest["source_commit"])
 
     def test_cli_doctor_and_statusline_and_budget(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -236,7 +249,31 @@ class TestReleaseBundle(unittest.TestCase):
 
                 ver = _run([str(install_dir / "cognitally.cmd"), "--version"], env=env, timeout=15)
                 self.assertEqual(ver.returncode, 0, ver.stderr)
-                self.assertIn("Cognitally (TokDash) v0.1.0", ver.stdout)
+                self.assertIn("Cognitally (TokDash) v0.1.1", ver.stdout)
+
+                bad_env = dict(env)
+                bad_env["COGNITALLY_EXPECTED_SHA256"] = "0" * 64
+                tamper_inst = _run(
+                    [
+                        "powershell",
+                        "-NoProfile",
+                        "-ExecutionPolicy",
+                        "Bypass",
+                        "-File",
+                        str(REPO_ROOT / "install.ps1"),
+                        "-InstallDir",
+                        str(install_dir),
+                        "-NoPathUpdate",
+                        "-SkipDoctor",
+                        "-Local",
+                    ],
+                    env=bad_env,
+                    timeout=30,
+                )
+                self.assertNotEqual(tamper_inst.returncode, 0, "Tampered SHA-256 must fail closed")
+                ver_after = _run([str(install_dir / "cognitally.cmd"), "--version"], env=env, timeout=15)
+                self.assertEqual(ver_after.returncode, 0, ver_after.stderr)
+                self.assertIn("Cognitally (TokDash) v0.1.1", ver_after.stdout)
 
                 uninst = _run(
                     [
@@ -279,7 +316,15 @@ class TestReleaseBundle(unittest.TestCase):
 
             ver = _run([str(installed_alias), "--version"], env=env, timeout=10)
             self.assertEqual(ver.returncode, 0, ver.stderr)
-            self.assertIn("Cognitally (TokDash) v0.1.0", ver.stdout)
+            self.assertIn("Cognitally (TokDash) v0.1.1", ver.stdout)
+
+            bad_env = dict(env)
+            bad_env["COGNITALLY_EXPECTED_SHA256"] = "0" * 64
+            tamper_inst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--no-doctor"], env=bad_env, timeout=20)
+            self.assertNotEqual(tamper_inst.returncode, 0, "Tampered SHA-256 must fail closed")
+            ver_after = _run([str(installed_alias), "--version"], env=env, timeout=10)
+            self.assertEqual(ver_after.returncode, 0, ver_after.stderr)
+            self.assertIn("Cognitally (TokDash) v0.1.1", ver_after.stdout)
 
             uninst = _run([bash_bin, str(REPO_ROOT / "install.sh"), "--uninstall"], env=env, timeout=20)
             self.assertEqual(uninst.returncode, 0, uninst.stdout + uninst.stderr)
