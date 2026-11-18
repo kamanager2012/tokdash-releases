@@ -1,4 +1,4 @@
-# Cognitally (TokDash) Windows Native PowerShell Installer
+﻿# Cognitally (TokDash) Windows Native PowerShell Installer
 # Usage:
 #   Local:     powershell -ExecutionPolicy Bypass -File .\install.ps1
 #   Remote:    irm https://raw.githubusercontent.com/kamanager2012/tokdash-releases/v0.1.1/install.ps1 | iex
@@ -84,7 +84,7 @@ function Resolve-PythonLauncher {
 
 function Get-FileSha256 {
     param([string]$PyExe, [string[]]$PyPrefix, [string]$Path)
-    $out = & $PyExe @PyPrefix -c "import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], rb).read()).hexdigest())" "$Path"
+    $out = & $PyExe @PyPrefix -c "import hashlib, pathlib, sys; print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" "$Path"
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to compute SHA-256 checksum for $Path"
     }
